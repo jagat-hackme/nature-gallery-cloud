@@ -34,10 +34,8 @@ def upload():
     desc = request.form["desc"]
     cat = request.form["cat"]
 
-    # unique filename
     filename = f"{uuid.uuid4()}-{file.filename}"
 
-    # upload image to Azure Blob Storage
     blob_client = blob_service_client.get_blob_client(
         container=container_name,
         blob=filename
@@ -45,16 +43,15 @@ def upload():
 
     blob_client.upload_blob(file, overwrite=True)
 
-    # Blob URL
     blob_url = f"https://jagatnaturegallery.blob.core.windows.net/{container_name}/{filename}"
 
-    # save metadata in MongoDB Atlas
     photo = {
         "src": blob_url,
         "title": title,
         "desc": desc,
         "cat": cat,
-        "liked": False
+        "liked": False,
+        "filename": filename
     }
 
     collection.insert_one(photo)
@@ -71,10 +68,29 @@ def get_photos():
             "title": p["title"],
             "desc": p["desc"],
             "cat": p["cat"],
-            "liked": p.get("liked", False)
+            "liked": p.get("liked", False),
+            "filename": p.get("filename", "")
         })
 
     return jsonify(photos)
+
+@app.route("/delete/<filename>", methods=["DELETE"])
+def delete_photo(filename):
+    try:
+        # Delete image from Azure Blob Storage
+        blob_client = blob_service_client.get_blob_client(
+            container=container_name,
+            blob=filename
+        )
+        blob_client.delete_blob()
+
+        # Delete metadata from MongoDB Atlas
+        collection.delete_one({"filename": filename})
+
+        return jsonify({"message": "Photo deleted successfully"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
