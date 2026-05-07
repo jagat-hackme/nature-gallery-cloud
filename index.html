@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate Nature Gallery App</title>
+<style>
+*{box-sizing:border-box;margin:0;font-family:Segoe UI}
+body{background:#1a1f2a;color:#fff}
+header{background:linear-gradient(90deg,#22c55e,#3b82f6);padding:15px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px #000;border-radius:0 0 15px 15px}
+header h2{color:#fff}
+.navBtn{color:#fff;text-decoration:none;margin-left:10px;padding:8px 12px;border-radius:6px;background:#00000050;transition:.3s;cursor:pointer;font-weight:600}
+.navBtn:hover{background:#000000aa}
+section{display:none;padding:25px}
+.active{display:block}
+.hero{text-align:center;padding:50px;background:linear-gradient(to right,#111827,#1f2937)}
+.hero h1{color:#22c55e}
+.searchFilter{margin:20px auto;max-width:600px;display:flex;gap:10px}
+.searchFilter input,.searchFilter select{flex:1;padding:10px;border-radius:6px;border:none}
+.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;padding:20px}
+.card{background:#111827;border-radius:12px;overflow:hidden;box-shadow:0 10px 25px rgba(0,0,0,.5);transition:.3s;cursor:pointer;position:relative}
+.card:hover{transform:translateY(-5px);box-shadow:0 15px 30px rgba(0,0,0,.7)}
+.card img{width:100%;height:200px;object-fit:cover}
+.caption{padding:12px;font-size:.9rem}
+.dim{color:#9ca3af;font-size:.8rem;margin-top:5px}
+.card-actions{position:absolute;top:8px;right:8px;display:flex;gap:8px}
+.card-actions span{background:#00000080;padding:5px 8px;border-radius:6px;cursor:pointer;transition:.3s;font-size:1rem}
+.card-actions span:hover{background:#22c55e}
+.authContainer{display:flex;justify-content:center;align-items:center;height:80vh}
+.authBox{background:#1f2937;padding:25px;border-radius:12px;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,.5)}
+.authBox input{width:100%;margin:10px 0;padding:10px;border-radius:6px;border:none}
+.btn{background:#22c55e;color:#000;font-weight:bold;border:none;padding:10px 15px;border-radius:6px;cursor:pointer;transition:.3s;margin:5px}
+.btn:hover{background:#16a34a}
+.uploadBox{max-width:600px;margin:40px auto;background:#1f2937;padding:25px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,.5)}
+.uploadBox input,.uploadBox textarea,.uploadBox select{width:100%;margin:10px 0;padding:10px;border-radius:6px;border:none}
+#preview img{width:100%;border-radius:10px;margin-top:15px}
+footer{text-align:center;padding:20px;color:#9ca3af}
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>🌿 Ultimate Nature Gallery</h2>
+<nav>
+<span class="navBtn" onclick="showPage('login')">Login</span>
+<span class="navBtn" onclick="showPage('home')">Home</span>
+<span class="navBtn" onclick="showPage('upload')">Upload</span>
+</nav>
+</header>
+
+<section id="login" class="active">
+<div class="authContainer">
+<div class="authBox">
+<h2>Login</h2>
+<input id="loginUser" placeholder="Username">
+<input id="loginPass" type="password" placeholder="Password">
+<button class="btn" onclick="login()">Login</button>
+<p>Demo: admin / 1234</p>
+</div>
+</div>
+</section>
+
+<section id="home">
+<div class="hero">
+<h1>Discover the Beauty of Nature</h1>
+<p>Explore landscapes, oceans and forests. Uploads are stored in Azure Blob Storage and metadata is stored in MongoDB Atlas.</p>
+</div>
+
+<div class="searchFilter">
+<input id="searchBox" placeholder="Search photos..." oninput="renderGallery()">
+<select id="filterCat" onchange="renderGallery()">
+<option value="All">All Categories</option>
+<option>Mountains</option>
+<option>Forest</option>
+<option>Ocean</option>
+</select>
+</div>
+
+<div class="gallery" id="gallery"></div>
+</section>
+
+<section id="upload">
+<div class="uploadBox">
+<h2>Upload Your Photo</h2>
+<p>Formats: JPG, PNG • Max size: 5MB</p>
+<input type="file" id="fileInput" accept="image/*">
+<input id="titleInput" placeholder="Photo Title">
+<textarea id="descInput" placeholder="Description"></textarea>
+<select id="catInput">
+<option>Mountains</option>
+<option>Forest</option>
+<option>Ocean</option>
+</select>
+<button class="btn" onclick="previewUpload()">Preview</button>
+<button class="btn" onclick="addPhoto()">Add to Gallery</button>
+<div id="preview"></div>
+</div>
+</section>
+
+<footer>© 2026 Ultimate Nature Gallery</footer>
+
+<script>
+let photos = [];
+
+function showPage(id){
+ document.querySelectorAll("section").forEach(s=>s.style.display="none");
+ document.getElementById(id).style.display="block";
+ if(id === "home") loadPhotos();
+}
+
+function login(){
+ const u=document.getElementById("loginUser").value;
+ const p=document.getElementById("loginPass").value;
+ if(u==="admin" && p==="1234"){
+  alert("Login successful!");
+  showPage("home");
+ }else{
+  alert("Invalid credentials");
+ }
+}
+
+async function loadPhotos(){
+ try{
+  const response = await fetch("/photos");
+  photos = await response.json();
+  renderGallery();
+ }catch(error){
+  console.error(error);
+  alert("Could not load photos from server");
+ }
+}
+
+function renderGallery(){
+ const gallery=document.getElementById("gallery");
+ gallery.innerHTML="";
+ const s=document.getElementById("searchBox").value.toLowerCase();
+ const c=document.getElementById("filterCat").value;
+
+ photos.filter(p=>(c==="All"||p.cat===c) && p.title.toLowerCase().includes(s))
+ .forEach((p,i)=>{
+  gallery.innerHTML+=`
+  <div class="card">
+   <img src="${p.src}">
+   <div class="card-actions">
+    <span onclick="toggleLike(${i})">${p.liked?'❤️':'🤍'}</span>
+    <span onclick="deletePhoto(${i})">🗑️</span>
+   </div>
+   <div class="caption">
+    <b>${p.title}</b><br>
+    ${p.cat}
+    <div class="dim">${p.desc || ""}</div>
+   </div>
+  </div>`;
+ });
+}
+
+function toggleLike(i){
+ photos[i].liked=!photos[i].liked;
+ renderGallery();
+}
+
+function deletePhoto(i){
+ if(confirm("Delete this photo from screen?")){
+  photos.splice(i,1);
+  renderGallery();
+ }
+}
+
+function previewUpload(){
+ const file=document.getElementById("fileInput").files[0];
+ if(!file) return alert("Please select an image first");
+
+ const reader=new FileReader();
+ reader.onload=e=>{
+  document.getElementById("preview").innerHTML =
+  `<img src="${e.target.result}">`;
+ };
+ reader.readAsDataURL(file);
+}
+
+async function addPhoto(){
+ const file = document.getElementById("fileInput").files[0];
+ const title = document.getElementById("titleInput").value.trim();
+ const desc = document.getElementById("descInput").value.trim();
+ const cat = document.getElementById("catInput").value;
+
+ if(!file) return alert("Please select an image to upload!");
+ if(title === "") return alert("Please enter a title before uploading!");
+ if(desc === "") return alert("Please enter a description!");
+ if(file.size > 5*1024*1024) return alert("File size must be less than 5MB!");
+
+ const formData = new FormData();
+ formData.append("file", file);
+ formData.append("title", title);
+ formData.append("desc", desc);
+ formData.append("cat", cat);
+
+ try{
+  const response = await fetch("/upload", {
+   method: "POST",
+   body: formData
+  });
+
+  const result = await response.json();
+  alert(result.message);
+
+  document.getElementById("fileInput").value = "";
+  document.getElementById("titleInput").value = "";
+  document.getElementById("descInput").value = "";
+  document.getElementById("preview").innerHTML = "";
+
+  showPage("home");
+ }catch(error){
+  console.error(error);
+  alert("Upload failed. Check Flask terminal for error.");
+ }
+}
+</script>
+
+</body>
+</html>
